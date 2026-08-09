@@ -1,5 +1,9 @@
 # Market Pulse Engine
 
+[![CI](https://github.com/sennurbascetin/market-pulse-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/sennurbascetin/market-pulse-engine/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 **A real-time financial data pipeline that explains *why* the market is moving, not just *that* it is.**
 
 Every cycle the engine ingests live prices, breaking financial news and the CNN Fear & Greed
