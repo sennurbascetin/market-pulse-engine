@@ -1,0 +1,93 @@
+%% Market Pulse Engine — end-to-end data flow
+%% Render: https://mermaid.live  or  mmdc -i docs/architecture.mmd -o docs/architecture.svg
+flowchart TB
+    subgraph SRC["SOURCE LAYER"]
+        direction LR
+        YF["yfinance<br/><i>live quotes + intraday bars</i>"]
+        RSS["5 RSS feeds<br/><i>Yahoo · CNBC · MarketWatch<br/>Seeking Alpha · Investing.com</i>"]
+        FG["CNN Fear &amp; Greed<br/><i>free, no key</i>"]
+    end
+
+    subgraph ING["INGESTION — ThreadPoolExecutor, market-hours aware"]
+        direction LR
+        PF["price_fetcher"]
+        NF["news_fetcher<br/><i>dedup by URL hash</i>"]
+        SF["sentiment_fetcher"]
+    end
+
+    subgraph BRONZE["BRONZE — raw, append-only, never modified"]
+        direction LR
+        BQ[("raw_quotes<br/>JSON payload")]
+        BN[("raw_news")]
+        BS[("raw_sentiment_index")]
+    end
+
+    subgraph SILVER["SILVER — typed, cleaned, deduplicated"]
+        direction LR
+        SQ[("quotes")]
+        SN[("news_articles")]
+        SS[("sentiment_index")]
+    end
+
+    subgraph GOLD["GOLD — DuckDB window functions, zero Pandas loops"]
+        direction LR
+        GQ[("quotes_enriched<br/><i>MA · returns · volatility<br/>VWAP · z-scores</i>")]
+        GD[("daily_summary")]
+    end
+
+    subgraph PLAT["PLATINUM — derived intelligence"]
+        direction LR
+        AN["Anomaly Detector<br/><b>Z-score ∩ IQR consensus</b>"]
+        LLM["LLM Market Analyst<br/><i>OpenAI · Anthropic · offline</i>"]
+        PA[("anomalies")]
+        PS[("news_sentiment")]
+        PN[("market_pulse_narratives")]
+    end
+
+    subgraph SERVE["SERVING"]
+        DASH["Plotly Dash<br/><i>8 live panels, 60s refresh</i>"]
+    end
+
+    RUNLOG[("pipeline.run_log")]
+
+    YF --> PF --> BQ
+    RSS --> NF --> BN
+    FG --> SF --> BS
+
+    BQ --> SQ
+    BN --> SN
+    BS --> SS
+
+    SQ --> GQ --> GD
+
+    GQ --> AN --> PA
+    SN --> LLM
+    GQ --> LLM
+    SS --> LLM
+    PA --> LLM
+    LLM --> PS
+    LLM --> PN
+
+    GQ --> DASH
+    GD --> DASH
+    PA --> DASH
+    PS --> DASH
+    PN --> DASH
+    SS --> DASH
+    RUNLOG --> DASH
+
+    ING -.->|"run metadata"| RUNLOG
+    GOLD -.-> RUNLOG
+    PLAT -.-> RUNLOG
+
+    classDef bronze fill:#3d2b1f,stroke:#8a6642,color:#f0e6dc
+    classDef silver fill:#2a2f38,stroke:#6b7684,color:#e8edf4
+    classDef gold   fill:#3d3520,stroke:#9a8340,color:#f5edd6
+    classDef plat   fill:#1e3340,stroke:#00d4ff,color:#dff6ff
+    classDef serve  fill:#141c2f,stroke:#00d4ff,color:#e6edf7
+
+    class BQ,BN,BS bronze
+    class SQ,SN,SS silver
+    class GQ,GD gold
+    class PA,PS,PN,AN,LLM plat
+    class DASH serve
