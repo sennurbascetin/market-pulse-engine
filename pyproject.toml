@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-pulse-engine"
+version = "1.0.0"
+description = "Real-time financial data pipeline fusing prices, news and AI narrative analysis into a live command centre."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Sennur Bascetin" }]
+keywords = ["data-engineering", "duckdb", "medallion", "anomaly-detection", "llm", "dash"]
+
+dependencies = [
+    "duckdb>=1.1",
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "requests>=2.31",
+    "yfinance>=0.2.40",
+    "feedparser>=6.0",
+    "apscheduler>=3.10",
+    "dash>=3.0",
+    "plotly>=5.22",
+    "dash-bootstrap-components>=1.6",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.40"]
+anthropic = ["anthropic>=0.40"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+market-pulse = "market_pulse_engine.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["market_pulse_engine*"]
+
+[tool.setuptools.package-data]
+market_pulse_engine = ["db/*.sql", "transforms/sql/*.sql", "dashboard/assets/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]

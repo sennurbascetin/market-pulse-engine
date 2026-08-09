@@ -1,0 +1,24 @@
+# --- Core pipeline ---
+duckdb>=1.1
+pandas>=2.2
+numpy>=1.26
+requests>=2.31
+
+# --- Ingestion ---
+yfinance>=0.2.40
+feedparser>=6.0
+
+# --- Orchestration ---
+apscheduler>=3.10
+
+# --- Dashboard ---
+dash>=3.0
+plotly>=5.22
+dash-bootstrap-components>=1.6
+
+# --- Intelligence (optional: the engine falls back to the offline
+#     heuristic analyst when no provider SDK/key is present) ---
+openai>=1.40
+
+# --- Testing ---
+pytest>=8.0
