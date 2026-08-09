@@ -1,7 +1,10 @@
 -- ---------------------------------------------------------------------------
 -- Bronze -> Silver : market sentiment index (CNN Fear & Greed)
+--
+-- A published reading never changes, so this is an insert-if-absent rather than
+-- a replace — same reasoning as silver_news.sql.
 -- ---------------------------------------------------------------------------
-INSERT OR REPLACE INTO silver.sentiment_index (
+INSERT INTO silver.sentiment_index (
     reading_id, source, observed_at, score, label,
     previous_close_score, week_ago_score, month_ago_score, ingested_at, run_id
 )
@@ -17,4 +20,5 @@ SELECT
     ingested_at,
     run_id
 FROM bronze.raw_sentiment_index
-WHERE TRY_CAST(payload ->> 'score' AS DOUBLE) IS NOT NULL;
+WHERE TRY_CAST(payload ->> 'score' AS DOUBLE) IS NOT NULL
+ON CONFLICT DO NOTHING;

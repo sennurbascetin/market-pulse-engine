@@ -13,12 +13,21 @@ measured. It all lands on a dark-mode terminal dashboard that refreshes itself.
 ```bash
 git clone https://github.com/sennurbascetin/market-pulse-engine.git
 cd market-pulse-engine
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python run.py --backfill
 ```
 
 Then open **http://127.0.0.1:8050**. No API keys, no accounts, no configuration.
+
+> **`zsh: command not found: python`?** macOS ships `python3`, not `python`. Either activate
+> the virtualenv first (`source .venv/bin/activate`, after which plain `python` works and your
+> prompt shows `(.venv)`), or skip activation entirely and call the venv's interpreter directly:
+> ```bash
+> .venv/bin/python run.py --backfill
+> ```
+> The first run takes ~30 seconds: it downloads five days of intraday history before serving.
 
 ---
 

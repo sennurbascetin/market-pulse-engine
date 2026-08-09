@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..db.connection import transaction
+from ..db.repair import run_with_repair
 from ..logging_setup import get_logger
 from .loader import load_sql
 
@@ -32,14 +33,23 @@ class TransformResult:
         return f"{self.table}: {self.rows_after} rows (+{self.rows_added})"
 
 
-def _run(name: str, table: str) -> TransformResult:
-    """Execute one transform file and report the row delta."""
+def _execute(name: str, table: str) -> TransformResult:
     with transaction() as conn:
         before = conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
         conn.execute(load_sql(name))
         after = conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
-    result = TransformResult(table=table, rows_before=before, rows_after=after)
-    log.info("silver transform", extra={"table": table, "rows": after, "added": result.rows_added})
+    return TransformResult(table=table, rows_before=before, rows_after=after)
+
+
+def _run(name: str, table: str) -> TransformResult:
+    """Execute one transform file and report the row delta.
+
+    Wrapped in :func:`run_with_repair` so an index left inconsistent by an
+    unclean shutdown heals itself instead of aborting the pipeline.
+    """
+    result = run_with_repair(table, lambda: _execute(name, table))
+    log.info("silver transform", extra={"table": table, "rows": result.rows_after,
+                                        "added": result.rows_added})
     return result
 
 

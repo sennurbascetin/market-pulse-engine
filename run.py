@@ -55,6 +55,24 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _shutdown(orchestrator) -> None:
+    """Stop the scheduler and close DuckDB cleanly.
+
+    Closing matters: DuckDB keeps a ``PRIMARY KEY`` index that, if the process
+    dies mid-write, can be left inconsistent with the table's rows — after which
+    the next overwrite aborts the database with a fatal index error. Shutting
+    down cleanly checkpoints the file and avoids that entirely.
+    """
+    from market_pulse_engine.db import connection
+
+    if orchestrator is not None:
+        orchestrator.shutdown()
+    try:
+        connection.close()
+    except Exception as exc:  # noqa: BLE001 - never mask the original exit path
+        log.warning("database did not close cleanly", extra={"error": str(exc)})
+
+
 def _backfill() -> None:
     from market_pulse_engine.ingestion import backfill_history
     from market_pulse_engine.transforms import run_transforms
@@ -111,9 +129,10 @@ def main() -> int:
         signal.signal(signal.SIGINT, _handle)
         signal.signal(signal.SIGTERM, _handle)
         print("  dashboard  disabled — Ctrl-C to stop\n")
-        stop.wait()
-        if orchestrator:
-            orchestrator.shutdown()
+        try:
+            stop.wait()
+        finally:
+            _shutdown(orchestrator)
         return 0
 
     # -- pipeline + dashboard ---------------------------------------------
@@ -128,8 +147,7 @@ def main() -> int:
     except KeyboardInterrupt:
         pass
     finally:
-        if orchestrator:
-            orchestrator.shutdown()
+        _shutdown(orchestrator)
     return 0
 
 

@@ -4,8 +4,13 @@
 -- Bronze already deduplicates by URL hash, so the only work here is typing the
 -- payload, guaranteeing a non-null title/summary, and lifting the ticker
 -- attribution array into a native DuckDB VARCHAR[].
+--
+-- ON CONFLICT DO NOTHING rather than INSERT OR REPLACE: a published article is
+-- immutable once captured, so there is nothing to refresh. It also avoids
+-- DuckDB's index *delete* path, which is the one an unclean shutdown can leave
+-- inconsistent (see db/repair.py).
 -- ---------------------------------------------------------------------------
-INSERT OR REPLACE INTO silver.news_articles (
+INSERT INTO silver.news_articles (
     article_id, title, summary, url, source, published_at,
     tickers_mentioned, ingested_at, run_id
 )
@@ -24,4 +29,5 @@ SELECT
     run_id
 FROM bronze.raw_news
 WHERE NULLIF(trim(COALESCE(payload ->> 'title', '')), '') IS NOT NULL
-  AND NULLIF(trim(COALESCE(payload ->> 'url',   '')), '') IS NOT NULL;
+  AND NULLIF(trim(COALESCE(payload ->> 'url',   '')), '') IS NOT NULL
+ON CONFLICT DO NOTHING;
