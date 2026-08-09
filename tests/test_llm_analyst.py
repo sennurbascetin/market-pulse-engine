@@ -343,7 +343,6 @@ def test_forcing_heuristic_returns_the_offline_provider():
 
 def test_missing_credentials_fall_back_offline(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     assert get_provider("openai").offline is True
     assert get_provider("auto").offline is True
 

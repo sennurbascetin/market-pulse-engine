@@ -51,8 +51,8 @@ on this dataset, the consensus rule suppresses **9.4% of z-score-only hits** (60
 13,707 metric evaluations). That is a real reduction, and it is the measured number rather than
 a claim.
 
-**The AI layer degrades instead of breaking.** The analyst backend is pluggable — OpenAI,
-Anthropic, or a built-in offline analyst — resolved at runtime. A missing key, a failed request
+**The AI layer degrades instead of breaking.** The analyst backend is pluggable — a hosted
+model or a built-in offline analyst — resolved at runtime. A missing key, a failed request
 or a malformed response falls back *per item*, so the pipeline never stops producing insight
 because a vendor is having a bad afternoon.
 
@@ -68,8 +68,9 @@ That is not true of a standalone Python service, so the engine treats the analys
 |---|---|---|
 | `auto` *(default)* | first available of the below | — |
 | `openai` | `gpt-5-mini` via the OpenAI SDK | `OPENAI_API_KEY` |
-| `anthropic` | Claude via the Anthropic SDK | `ANTHROPIC_API_KEY` |
 | `heuristic` | offline analyst — no network, no cost | nothing |
+
+Adding a provider is one class implementing `complete()` plus a line in `get_provider()`.
 
 The offline analyst is **not a stub**. It scores sentiment with a weighted financial lexicon
 (with word-boundary negation handling) and composes the narrative from the same measured facts

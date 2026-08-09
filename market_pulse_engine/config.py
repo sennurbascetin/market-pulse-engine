@@ -168,9 +168,6 @@ class LLMConfig:
 
     provider: str = field(default_factory=lambda: _env_str("MPE_LLM_PROVIDER", "auto").lower())
     openai_model: str = field(default_factory=lambda: _env_str("MPE_OPENAI_MODEL", "gpt-5-mini"))
-    anthropic_model: str = field(
-        default_factory=lambda: _env_str("MPE_ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
-    )
     max_articles_per_run: int = field(default_factory=lambda: _env_int("MPE_LLM_MAX_ARTICLES", 10))
     every_n_runs: int = field(default_factory=lambda: _env_int("MPE_LLM_EVERY_N_RUNS", 5))
     request_timeout: int = field(default_factory=lambda: _env_int("MPE_LLM_TIMEOUT", 45))

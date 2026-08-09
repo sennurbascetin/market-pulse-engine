@@ -6,7 +6,6 @@ than assuming one:
 
 ===============  ==========================================================
 ``openai``       ``gpt-5-mini`` via the OpenAI SDK (needs ``OPENAI_API_KEY``)
-``anthropic``    Claude via the Anthropic SDK (needs ``ANTHROPIC_API_KEY``)
 ``heuristic``    Offline analyst — no network, no key, no cost
 ===============  ==========================================================
 
@@ -127,42 +126,6 @@ class OpenAIProvider(BaseProvider):
         )
 
 
-class AnthropicProvider(BaseProvider):
-    """Anthropic Messages backend (Claude Haiku by default)."""
-
-    name = "anthropic"
-
-    def __init__(self, model: str | None = None) -> None:
-        from anthropic import Anthropic  # imported lazily
-
-        self.model = model or CONFIG.llm.anthropic_model
-        self._client = Anthropic(timeout=CONFIG.llm.request_timeout)
-
-    def complete(self, system: str, user: str, *, json_mode: bool = False) -> LLMResponse:
-        # The Messages API has no JSON response mode; prefilling the assistant
-        # turn with "{" is the standard way to force a bare JSON object.
-        messages: list[dict[str, Any]] = [{"role": "user", "content": user}]
-        if json_mode:
-            messages.append({"role": "assistant", "content": "{"})
-
-        try:
-            message = self._client.messages.create(
-                model=self.model,
-                max_tokens=1024,
-                system=system,
-                messages=messages,
-            )
-        except Exception as exc:  # noqa: BLE001
-            raise LLMError(f"anthropic call failed: {exc}") from exc
-
-        text = "".join(block.text for block in message.content if block.type == "text")
-        if json_mode:
-            text = "{" + text
-        usage = getattr(message, "usage", None)
-        tokens = (getattr(usage, "input_tokens", 0) or 0) + (getattr(usage, "output_tokens", 0) or 0)
-        return LLMResponse(text=text, tokens_used=tokens, model=self.model, provider=self.name)
-
-
 def _try_openai() -> BaseProvider | None:
     if not os.environ.get("OPENAI_API_KEY"):
         return None
@@ -170,16 +133,6 @@ def _try_openai() -> BaseProvider | None:
         return OpenAIProvider()
     except Exception as exc:  # noqa: BLE001 - SDK missing or misconfigured
         log.warning("openai unavailable", extra={"error": str(exc)})
-        return None
-
-
-def _try_anthropic() -> BaseProvider | None:
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return None
-    try:
-        return AnthropicProvider()
-    except Exception as exc:  # noqa: BLE001
-        log.warning("anthropic unavailable", extra={"error": str(exc)})
         return None
 
 
@@ -191,9 +144,7 @@ def get_provider(preference: str | None = None) -> BaseProvider:
         return OfflineProvider()
     if choice == "openai":
         return _try_openai() or OfflineProvider()
-    if choice == "anthropic":
-        return _try_anthropic() or OfflineProvider()
 
-    provider = _try_openai() or _try_anthropic() or OfflineProvider()
+    provider = _try_openai() or OfflineProvider()
     log.info("analyst backend selected", extra={"provider": provider.name, "model": provider.model})
     return provider

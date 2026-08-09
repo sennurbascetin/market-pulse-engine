@@ -110,7 +110,6 @@ def pulse_card(narrative: dict[str, Any] | None) -> html.Div:
     provider_label = {
         "heuristic": "offline analyst",
         "openai": "OpenAI",
-        "anthropic": "Anthropic",
     }.get(provider, provider)
 
     return html.Div(
