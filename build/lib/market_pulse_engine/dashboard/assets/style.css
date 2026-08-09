@@ -1,0 +1,277 @@
+/* ==========================================================================
+   Market Pulse Engine — terminal aesthetic
+   Dark-only by design: this is a trading command centre, not a document.
+   ========================================================================== */
+
+:root {
+  --bg: #0a0e1a;
+  --surface: #0f1524;
+  --surface-raised: #141c2f;
+  --border: #1e2a44;
+  --grid: #161f33;
+
+  --text: #e6edf7;
+  --text-secondary: #93a5c4;
+  --text-muted: #5f708b;
+
+  --accent: #00d4ff;
+  --amber: #ffb347;
+  --red: #ff4757;
+  --green: #2ee6a8;
+
+  --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular,
+          'SF Mono', Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+/* The page never scrolls sideways. Scoped to <body> deliberately: setting
+   overflow-x on <html> forces its overflow-y to `auto`, which breaks vertical
+   scrolling of the document. */
+body { overflow-x: clip; }
+
+a { color: inherit; text-decoration: none; }
+a:hover { color: var(--accent); }
+
+/* --- shell ---------------------------------------------------------------- */
+.shell { padding: 0 14px 74px; }        /* bottom padding clears the fixed bar */
+
+.masthead {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.brand {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.brand-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+.masthead-right { margin-left: auto; display: flex; gap: 16px; align-items: center; }
+.clock { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* --- ticker tape ---------------------------------------------------------- */
+.tape-viewport {
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+  padding: 7px 0;
+  position: relative;
+}
+.tape-track {
+  display: flex;
+  gap: 30px;
+  width: max-content;
+  animation: tape-scroll 72s linear infinite;
+}
+.tape-viewport:hover .tape-track { animation-play-state: paused; }
+@keyframes tape-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tape-track { animation: none; flex-wrap: wrap; width: 100%; }
+}
+.tape-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 13px; }
+.tape-symbol { font-weight: 700; color: var(--text); letter-spacing: 0.06em; }
+.tape-price { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.tape-live { color: var(--green); font-size: 8px; }
+.tape-stale { color: var(--text-muted); font-size: 8px; }
+.tape-empty { color: var(--text-muted); padding-left: 14px; }
+
+/* --- panels --------------------------------------------------------------- */
+.grid-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.col { flex: 1 1 0; min-width: 0; }
+.col-wide { flex: 2 1 0; min-width: 0; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.panel-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+.panel-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.panel-subtitle { font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.04em; }
+.panel-body { padding: 11px 13px; flex: 1; min-height: 0; }
+.panel-flush .panel-body { padding: 6px 4px 4px; }
+
+/* --- market pulse --------------------------------------------------------- */
+.pulse-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; }
+.pulse-headline {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.pulse-text {
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--text);
+  margin: 0 0 10px;
+  max-width: 90ch;
+}
+.pulse-meta { font-size: 10.5px; color: var(--text-muted); display: flex; gap: 8px; }
+.pulse-empty { color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.dot-sep { color: var(--border); }
+
+/* --- badges --------------------------------------------------------------- */
+.badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* --- feeds (sentiment + anomalies) ---------------------------------------- */
+.feed { max-height: 352px; overflow-y: auto; overflow-x: hidden; }
+.feed-row {
+  display: flex;
+  gap: 11px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--grid);
+  align-items: flex-start;
+}
+.feed-row:last-child { border-bottom: none; }
+.feed-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 74px;
+}
+.feed-confidence, .alert-sigma {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.feed-content { flex: 1; min-width: 0; }
+.feed-title {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text);
+  display: block;
+  overflow-wrap: anywhere;
+}
+.alert-text { font-size: 12.5px; line-height: 1.45; color: var(--text); overflow-wrap: anywhere; }
+.feed-meta { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+.feed-empty { color: var(--text-muted); padding: 16px 2px; font-size: 12px; }
+
+/* Scrollbars styled to disappear into the chrome */
+.feed::-webkit-scrollbar { width: 7px; }
+.feed::-webkit-scrollbar-track { background: transparent; }
+.feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.feed::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* --- fear & greed --------------------------------------------------------- */
+.gauge-label { text-align: center; margin-top: -6px; }
+.gauge-rating {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.gauge-context {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 5px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* --- controls ------------------------------------------------------------- */
+.ticker-picker { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 9px 0; }
+/* The chip label *is* the control; the native radio dot would be noise. */
+.ticker-radio-input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.ticker-chip {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  cursor: pointer;
+  background: transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.ticker-chip:hover { color: var(--text); border-color: var(--text-muted); }
+.ticker-chip.active { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+
+/* --- health bar ----------------------------------------------------------- */
+.health-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border);
+  padding: 7px 14px;
+  z-index: 40;
+}
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0 14px;
+  border-right: 1px solid var(--border);
+}
+.stat:last-child { border-right: none; }
+.stat-label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--text-muted);
+}
+.stat-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- responsive ----------------------------------------------------------- */
+@media (max-width: 1100px) {
+  .col, .col-wide { flex: 1 1 100%; }
+  .health-bar { position: static; }
+  .shell { padding-bottom: 14px; }
+}

@@ -37,3 +37,18 @@ jobs:
 
       - name: Verify the schema builds from scratch
         run: python -m market_pulse_engine.db.init
+
+      - name: Verify the package installs with its SQL assets
+        # The transforms live in .sql files shipped as package data. If that
+        # wiring ever breaks, an installed copy fails at runtime rather than
+        # at build time — so assert it from site-packages, not the source tree.
+        run: |
+          pip install .
+          cd "$RUNNER_TEMP"
+          python -c "
+          from market_pulse_engine.transforms.loader import load_sql
+          from market_pulse_engine.db.init import SCHEMA_PATH
+          assert 'quotes_enriched' in load_sql('gold_quotes_enriched')
+          assert SCHEMA_PATH.is_file(), 'schema.sql missing from the installed package'
+          print('package data OK')
+          "

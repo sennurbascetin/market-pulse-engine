@@ -42,3 +42,7 @@ market_pulse_engine = ["db/*.sql", "transforms/sql/*.sql", "dashboard/assets/*"]
 testpaths = ["tests"]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning"]
+# Put the repo root on sys.path so `pytest` works on a fresh clone without an
+# install step. `python -m pytest` adds the working directory implicitly and so
+# hides the need for this; the bare `pytest` console script does not.
+pythonpath = ["."]
