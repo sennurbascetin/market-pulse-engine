@@ -213,6 +213,36 @@ locale.
 | LLM request fails or returns junk | that item falls back to the offline analyst |
 | a whole stage raises | run marked `partial`, scheduler continues |
 | ≥ 3 stage failures | run marked `failed`, scheduler still continues |
+| index damaged by an unclean shutdown | table rebuilt in place, transform retried once |
+| a second instance is started | the holding PID is reported, exit code 2 |
+
+### The index-damage failure, in full
+
+DuckDB maintains an ART index behind every `PRIMARY KEY`. A process killed mid-write can leave
+it inconsistent with the table's rows; the next statement that must *delete* an index entry then
+aborts the entire database instance:
+
+```
+FATAL Error: Invalid Input Error: Failed to delete all rows from index.
+Only deleted 0 out of N rows.
+```
+
+This was reproduced deterministically on an affected file, while a fresh database ran the same
+statements indefinitely — so it is recoverable damage, not a DuckDB limitation. Both
+`INSERT OR REPLACE` and `ON CONFLICT DO UPDATE` take the failing delete path;
+`ON CONFLICT DO NOTHING` does not.
+
+The response is layered:
+
+1. **Prevention.** `run.py` installs SIGINT/SIGTERM/SIGHUP handlers and an `atexit` hook, so
+   Ctrl-C, `kill` and `docker stop` all checkpoint the file. Without this the Dash server blocks
+   in `serve_forever` and SIGTERM kills the process with no cleanup at all.
+2. **Avoidance.** The immutable Silver tables use `ON CONFLICT DO NOTHING` — more accurate
+   semantics for an article or a published reading, and it never touches the delete path.
+3. **Recovery.** `db/repair.py` detects the abort, copies the table aside, drops and recreates it
+   from `schema.sql` (rebuilding the index), restores every row, and retries once. Nothing is
+   regenerated from upstream: Bronze payloads and LLM-authored Platinum records cannot be
+   recomputed. A second failure is re-raised rather than hidden.
 
 The scheduler is configured with `coalesce=True` and `max_instances=1`, so a slow cycle can
 never stack up behind the next tick.

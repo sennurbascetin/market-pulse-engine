@@ -16,6 +16,7 @@ Concurrency model
 
 from __future__ import annotations
 
+import re
 import threading
 from contextlib import contextmanager
 from pathlib import Path
@@ -32,6 +33,38 @@ _path_override: Path | None = None
 
 #: Serialises write transactions across the scheduler and dashboard threads.
 write_lock = threading.RLock()
+
+
+class DatabaseLockedError(RuntimeError):
+    """Raised when another process already holds the database read-write.
+
+    DuckDB is embedded: one writer per file. Hitting this almost always means a
+    second copy of the engine is running, so the message names the offending
+    process rather than surfacing a raw IO error.
+    """
+
+
+def _locked_message(path: Path, error: Exception) -> str:
+    match = re.search(r"PID (\d+)", str(error))
+    pid = match.group(1) if match else None
+    lines = [
+        f"The database is already open by another process: {path}",
+        "",
+        "DuckDB allows one read-write process per file, so the engine cannot",
+        "start twice against the same database.",
+        "",
+    ]
+    if pid:
+        lines += [
+            f"  Another instance is running as PID {pid}. Either use it:",
+            "      open http://127.0.0.1:8050",
+            "",
+            "  or stop it first:",
+            f"      kill {pid}",
+        ]
+    else:
+        lines.append("  Stop the other instance, then try again.")
+    return "\n".join(lines)
 
 
 def use_database(path: Path | str | None) -> None:
@@ -59,7 +92,12 @@ def _root() -> duckdb.DuckDBPyConnection:
             if _root_connection is None:
                 path = database_path()
                 path.parent.mkdir(parents=True, exist_ok=True)
-                _root_connection = duckdb.connect(str(path))
+                try:
+                    _root_connection = duckdb.connect(str(path))
+                except duckdb.IOException as error:
+                    if "lock" in str(error).lower():
+                        raise DatabaseLockedError(_locked_message(path, error)) from error
+                    raise
                 _configure(_root_connection)
     return _root_connection
 

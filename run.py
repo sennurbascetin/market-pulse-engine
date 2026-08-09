@@ -20,6 +20,7 @@ Options::
 from __future__ import annotations
 
 import argparse
+import atexit
 import signal
 import sys
 import threading
@@ -55,14 +56,21 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+_shutdown_done = threading.Event()
+
+
 def _shutdown(orchestrator) -> None:
-    """Stop the scheduler and close DuckDB cleanly.
+    """Stop the scheduler and close DuckDB cleanly. Safe to call more than once.
 
     Closing matters: DuckDB keeps a ``PRIMARY KEY`` index that, if the process
     dies mid-write, can be left inconsistent with the table's rows — after which
     the next overwrite aborts the database with a fatal index error. Shutting
     down cleanly checkpoints the file and avoids that entirely.
     """
+    if _shutdown_done.is_set():
+        return
+    _shutdown_done.set()
+
     from market_pulse_engine.db import connection
 
     if orchestrator is not None:
@@ -71,6 +79,29 @@ def _shutdown(orchestrator) -> None:
         connection.close()
     except Exception as exc:  # noqa: BLE001 - never mask the original exit path
         log.warning("database did not close cleanly", extra={"error": str(exc)})
+
+
+def _install_shutdown_hooks(orchestrator) -> None:
+    """Make every ordinary exit path close the database.
+
+    The Dash server blocks in ``serve_forever``, and SIGTERM has no default
+    Python handler — so ``kill``, ``docker stop`` and a system shutdown would
+    otherwise terminate the process without running any cleanup, which is
+    exactly the unclean-write case that corrupts the index. Converting those
+    signals into a normal interpreter exit lets ``atexit`` do the closing.
+    """
+    atexit.register(_shutdown, orchestrator)
+
+    def _handle(signum, _frame):
+        log.info("shutdown signal received", extra={"signal": signum})
+        _shutdown(orchestrator)
+        raise SystemExit(0)
+
+    for received in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        try:
+            signal.signal(received, _handle)
+        except (ValueError, OSError):  # pragma: no cover - not on every platform
+            pass
 
 
 def _backfill() -> None:
@@ -85,12 +116,20 @@ def _backfill() -> None:
 
 
 def main() -> int:
+    from market_pulse_engine.db.connection import DatabaseLockedError
+
     args = _parse_args()
     setup_logging()
     print(BANNER)
 
     CONFIG.ensure_directories()
-    db_init.apply_schema()
+    try:
+        db_init.apply_schema()
+    except DatabaseLockedError as locked:
+        # The overwhelmingly common cause is a second copy of the engine still
+        # running; a stack trace helps nobody diagnose that.
+        print(f"  {locked}\n")
+        return 2
     print(f"  database   {CONFIG.db_path}")
     print(f"  watchlist  {', '.join(CONFIG.watchlist)}")
     print(f"  cadence    every {CONFIG.poll_seconds}s"
@@ -120,17 +159,14 @@ def main() -> int:
         print(f"  pipeline   running every {args.interval or CONFIG.poll_seconds}s")
 
     # -- headless ----------------------------------------------------------
+    _install_shutdown_hooks(orchestrator)
+
     if args.no_dashboard:
-        stop = threading.Event()
-
-        def _handle(_signum, _frame):
-            stop.set()
-
-        signal.signal(signal.SIGINT, _handle)
-        signal.signal(signal.SIGTERM, _handle)
         print("  dashboard  disabled — Ctrl-C to stop\n")
         try:
-            stop.wait()
+            threading.Event().wait()   # until a signal unwinds us
+        except (KeyboardInterrupt, SystemExit):
+            pass
         finally:
             _shutdown(orchestrator)
         return 0
@@ -144,7 +180,7 @@ def main() -> int:
 
     try:
         app.run(host=settings.host, port=settings.port, debug=False)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         pass
     finally:
         _shutdown(orchestrator)

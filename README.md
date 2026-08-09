@@ -140,9 +140,14 @@ market-pulse init | ingest | backfill | transform | analyse | run | dashboard | 
 
 **Why one process?** DuckDB is embedded: a database file may be held read-write by exactly one
 process. `run.py` therefore runs the scheduler on a background thread beside the Dash server so
-the writer and the reader share a single database instance. Starting the dashboard separately
-while the pipeline is running will fail on the file lock — that is DuckDB working as designed,
-not a bug.
+the writer and the reader share a single database instance. Starting a second instance reports
+which PID holds the lock and what to do about it, rather than a stack trace.
+
+Stop the engine with **Ctrl-C** (or `kill`). Both are handled: the scheduler stops and DuckDB is
+closed and checkpointed. That matters — a process killed mid-write can leave the index behind a
+`PRIMARY KEY` inconsistent with its rows, which aborts the *next* run with a fatal error. If a
+database is already in that state, the engine detects it and rebuilds the affected table's index
+without losing a row (`db/repair.py`). `kill -9` is the one case nothing can protect against.
 
 ### Configuration
 
@@ -183,7 +188,7 @@ badge ships with its text label.
 pytest
 ```
 
-**101 tests, ~4 seconds, fully offline** — every external API is mocked and every test runs
+**113 tests, ~4 seconds, fully offline** — every external API is mocked and every test runs
 against a throwaway DuckDB file.
 
 | File | Covers |
@@ -193,6 +198,7 @@ against a throwaway DuckDB file.
 | `test_anomaly_detector.py` | consensus logic, injected spikes, severity bands |
 | `test_llm_analyst.py` | response parsing, schema validation, provider fallback |
 | `test_pipeline.py` | market-hours gating, run-log bookkeeping, stage degradation |
+| `test_db.py` | lock reporting, index-damage detection and lossless repair |
 
 Assertions check specific hand-computed numbers, so a regression in the SQL surfaces as a wrong
 value rather than "something changed".
